@@ -1,8 +1,7 @@
 import 'dart:io';
 
+import 'package:beacons/beacons.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_beacon/flutter_beacon.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -58,37 +57,18 @@ class _MyHomePageState extends State<MyHomePage> {
     initBeacon();
   }
 
-  void initBeacon() async {
-    var routeName = Platform.isIOS ? "iOS" : "android";
-    try {
-      // or if you want to include automatic checking permission
-      await flutterBeacon.initializeAndCheckScanning;
-    } on PlatformException catch (e) {
-      // library failed to initialize, check code and message
-    }
-    final regions = <Region>[];
+    void initBeacon() async {
+    String routeName = Platform.isIOS?"IOS2":"android2";
+    Beacons.monitoring(
+      region: new BeaconRegionIBeacon(
+        identifier: 'test',
+        proximityUUID: 'CC6ED3C0-477E-417B-81E1-0A62D6504061',
+      ),
+      inBackground: true,
+    ).listen((result) {
 
-    if (Platform.isIOS) {
-      // iOS platform, at least set identifier and proximityUUID for region scanning
-      regions.add(Region(
-          identifier: 'Apple Airlocate',
-          proximityUUID: 'CC6ED3C0-477E-417B-81E1-0A62D6504061'));
-    } else {
-      // Android platform, it can ranging out of beacon that filter all of Proximity UUID
-      regions.add(Region(
-          identifier: 'com.beacon',
-          proximityUUID: 'CC6ED3C0-477E-417B-81E1-0A62D6504061'));
-    }
-
-    this.setState(() {
-      url =
-          "https://dummy-beacon-flutter.firebaseio.com/ranging/$routeName.json";
-    });
-
-// to start monitoring beacons
-    flutterBeacon.monitoring(regions).listen((MonitoringResult result) {
-      // result contains a region, event type and event state
-      if (result.monitoringState == MonitoringState.inside) {
+// result contains a region, event type and event state
+      if (result.event == MonitoringState.enterOrInside) {
         http.post(
             "https://dummy-beacon-flutter.firebaseio.com/monitoring/$routeName.json",
             body: json.encode({
@@ -100,7 +80,7 @@ class _MyHomePageState extends State<MyHomePage> {
           this.status = "INSIDE!";
           this.status2 = "INSIDE!";
         });
-      } else if (result.monitoringState == MonitoringState.outside) {
+      } else if (result.event == MonitoringState.exitOrOutside) {
         http.post(
             "https://dummy-beacon-flutter.firebaseio.com/monitoring/$routeName.json",
             body: json.encode({
@@ -118,50 +98,21 @@ class _MyHomePageState extends State<MyHomePage> {
           this.status = "UNKOWN?!?!";
         });
       }
-    });
 
-    final regions2 = <Region>[];
 
-    if (Platform.isIOS) {
-      // iOS platform, at least set identifier and proximityUUID for region scanning
-      regions2.add(Region(
-          identifier: 'Apple Airlocate',
-          proximityUUID: 'CC6ED3C0-477E-417B-81E1-0A62D6504061'));
-    } else {
-      // android platform, it can ranging out of beacon that filter all of Proximity UUID
-      regions2.add(Region(
-          identifier: 'com.beacon',
-          proximityUUID: 'CC6ED3C0-477E-417B-81E1-0A62D6504061'));
-    }
 
-// to start ranging beacons
-    flutterBeacon.ranging(regions2).listen((RangingResult result) {
-      // result contains a region and list of beacons found
-      // list can be empty if no matching beacons were found in range
-      this.setState(() {
-        ranging = "ranging: ${(result.beacons.length)}";
-      });
 
-      if (result.beacons.length > 0) {
-        http
-            .put(
-                "https://dummy-beacon-flutter.firebaseio.com/ranging/$routeName.json",
-                body: json.encode({
-                  "time": DateTime.now().toString(),
-                  "state": true
-                }))
-            .then((value) {
-          this.setState(() {
-            lastStatus = value.statusCode.toString();
-            lastTime = DateTime.now().toString();
-          });
-        }).catchError((e) {
-          this.setState(() {
-            lastStatus = "error!";
-            lastTime = e.toString();
-          });
-        });
-      }
+
+
+
+
+
+
+
+
+
+
+
     });
   }
 
