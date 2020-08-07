@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_beacon/flutter_beacon.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 void main() {
   runApp(MyApp());
@@ -45,12 +46,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String status = "initializing..";
-  String status2 = "initializing..";
-  String ranging = "ranging: 0";
-  String lastTime = "-";
-  String lastStatus = "-";
-  String url = "-";
+  int rssi = 0;
+  bool exists = false;
+
+  int get size {
+    return rssi > 60 ? 300 : (rssi * 5);
+  }
 
   @override
   void initState() {
@@ -66,59 +67,6 @@ class _MyHomePageState extends State<MyHomePage> {
     } on PlatformException catch (e) {
       // library failed to initialize, check code and message
     }
-    final regions = <Region>[];
-
-    if (Platform.isIOS) {
-      // iOS platform, at least set identifier and proximityUUID for region scanning
-      regions.add(Region(
-          identifier: 'Apple Airlocate',
-          proximityUUID: 'CC6ED3C0-477E-417B-81E1-0A62D6504061'));
-    } else {
-      // Android platform, it can ranging out of beacon that filter all of Proximity UUID
-      regions.add(Region(
-          identifier: 'com.beacon',
-          proximityUUID: 'CC6ED3C0-477E-417B-81E1-0A62D6504061'));
-    }
-
-    this.setState(() {
-      url =
-          "https://dummy-beacon-flutter.firebaseio.com/ranging/$routeName.json";
-    });
-
-// to start monitoring beacons
-    flutterBeacon.monitoring(regions).listen((MonitoringResult result) {
-      // result contains a region, event type and event state
-      if (result.monitoringState == MonitoringState.inside) {
-        http.post(
-            "https://dummy-beacon-flutter.firebaseio.com/monitoring/$routeName.json",
-            body: json.encode({
-              "time": DateTime.now().toString(),
-              "state": true
-            }));
-        print("INSIDE BEACON!");
-        this.setState(() {
-          this.status = "INSIDE!";
-          this.status2 = "INSIDE!";
-        });
-      } else if (result.monitoringState == MonitoringState.outside) {
-        http.post(
-            "https://dummy-beacon-flutter.firebaseio.com/monitoring/$routeName.json",
-            body: json.encode({
-              "time": DateTime.now().toString(),
-              "state": false
-            }));
-        print("OUTSIDE BEACON!");
-        this.setState(() {
-          this.status = "OUTSIDE!";
-          this.status2 = "OUTSIDE!";
-        });
-      } else {
-        print("UNKOWN?!?!?!");
-        this.setState(() {
-          this.status = "UNKOWN?!?!";
-        });
-      }
-    });
 
     final regions2 = <Region>[];
 
@@ -139,27 +87,20 @@ class _MyHomePageState extends State<MyHomePage> {
       // result contains a region and list of beacons found
       // list can be empty if no matching beacons were found in range
       this.setState(() {
-        ranging = "ranging: ${(result.beacons.length)}";
+        exists = result.beacons.length > 0;
       });
 
       if (result.beacons.length > 0) {
-        http
-            .put(
-                "https://dummy-beacon-flutter.firebaseio.com/ranging/$routeName.json",
-                body: json.encode({
-                  "time": DateTime.now().toString(),
-                  "state": true
-                }))
-            .then((value) {
-          this.setState(() {
-            lastStatus = value.statusCode.toString();
-            lastTime = DateTime.now().toString();
-          });
-        }).catchError((e) {
-          this.setState(() {
-            lastStatus = "error!";
-            lastTime = e.toString();
-          });
+        this.setState(() {
+          if (result.beacons[0].rssi != 0) rssi = 100 + result.beacons[0].rssi;
+        });
+        http.put(
+            "https://dummy-beacon-flutter.firebaseio.com/ranging/$routeName.json",
+            body: json
+                .encode({"time": DateTime.now().toString(), "state": true}));
+      } else {
+        this.setState(() {
+          rssi = 0;
         });
       }
     });
@@ -168,31 +109,37 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
+      backgroundColor: Colors.white,
+      body: Container(
+        margin: EdgeInsets.only(top: 50),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Text(
-              status,
+            Image.asset(
+              'assets/logo.png',
+              height: 100,
             ),
-            Text(
-              status2,
-            ),
-            Text(
-              ranging,
-            ),
-            Text(
-              lastStatus,
-            ),
-            Text(
-              lastTime,
-            ),
-            Text(
-              url,
-            ),
+            exists
+                ? Container(
+                    height: size.toDouble(),
+                    width: size.toDouble(),
+                    decoration: BoxDecoration(
+                        color: Colors.greenAccent.shade400,
+                        borderRadius: BorderRadius.circular(1000),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.greenAccent,
+                              spreadRadius: 3,
+                              offset: Offset.zero,
+                              blurRadius: 5)
+                        ]),
+                  )
+                : SpinKitRipple(
+                    color: Colors.orange,
+                    size: 250.0,
+                    duration: Duration(milliseconds: 1300),
+                  ),
+            Container(),
           ],
         ),
       ),
