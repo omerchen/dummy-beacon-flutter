@@ -120,7 +120,9 @@ class _MyHomePageState extends State<MyHomePage> {
               height: 100,
             ),
             exists
-                ? Container(
+                ? AnimatedContainer(
+                    duration: Duration(milliseconds: 200),
+                    curve: Curves.fastOutSlowIn,
                     height: size.toDouble(),
                     width: size.toDouble(),
                     decoration: BoxDecoration(
